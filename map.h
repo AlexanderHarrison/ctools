@@ -6,8 +6,6 @@
 #error "HASH_MAP_TYPE must be defined before including map.h"
 #else
 
-#define CAT(a, b) a##_##b
-#define CAT2(a, b) CAT(a, b)
 #define NAME(a) CAT2(a, HASH_MAP_TYPE)
 
 #define MAP NAME(Map)
@@ -55,8 +53,6 @@ void NAME(map_dealloc)(MAP* map) {
 }
 
 #undef HASH_MAP_TYPE
-#undef CAT2
-#undef CAT
 #undef NAME
 #undef MAP
 

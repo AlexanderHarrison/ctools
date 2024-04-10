@@ -26,6 +26,21 @@ typedef float F32;
 
 #define IF_ERR(expr, message) if (expr) { fprintf(stderr, "%s\n", message); return 1; }
 
+// used for generics
+#define CAT(a, b) a##_##b
+#define CAT2(a, b) CAT(a, b)
+
+// round to next power of 2
+inline U32 round_pow_2(U32 n) {
+    U32 m = n-1;
+    m |= m >> 1;
+    m |= m >> 2;
+    m |= m >> 4;
+    m |= m >> 8;
+    m |= m >> 16;
+    return m+1;
+}
+
 // STRING ----------------------------------------------------------------------
 
 typedef struct {
@@ -54,8 +69,7 @@ bool string_equals(String a, String b) {
 
 String string_create(char* cstr) {
     U64 i = 0;
-    while (1) {
-        if (cstr[i] == '\0') { break; }
+    while (cstr[i] != '\0') {
         i += 1;
     }
 
@@ -125,30 +139,6 @@ int parse_unsigned(U64* out, String s) {
     return 0;
 }
 
-String read_input(void) {
-    String result = {NULL, 0};
-
-    FILE* file = fopen("input", "rb");
-    if (file != NULL) {
-        fseek(file, 0, SEEK_END);
-        I64 ret = ftell(file);
-        assert(ret >= 0);
-        U64 file_size = (U64)ret;
-        fseek(file, 0, SEEK_SET);
-
-        result.ptr = (char*)malloc(file_size + 1); // +1 for null terminator
-        if (result.ptr != NULL) {
-            fread(result.ptr, 1, file_size, file);
-            result.ptr[file_size] = '\0'; // Null-terminate the string
-            result.len = file_size;
-        }
-
-        fclose(file);
-    }
-
-    return result;
-}
-
 // PARSING -----------------------------------------------------------------------------
 
 typedef struct {
@@ -189,87 +179,6 @@ int segment_next(StringSegment* l, char separator) {
     l->token = new_tok;
 
     return 1;
-}
-
-// GRID --------------------------------------------------------------------------------
-
-typedef struct {
-    char* grid;
-    I64 width;
-    I64 height;
-} Grid;
-
-int grid_parse(Grid* out, String input) {
-    StringSegment lines = segment_create(input);
-    segment_next(&lines, '\n');
-    U64 line_len = lines.token.len;
-    U64 line_count = 1;
-
-    while (segment_next(&lines, '\n')) {
-        line_count += 1;
-    }
-
-    char* data = malloc(line_len * line_count);
-
-    lines = segment_create(input);
-    U64 l = 0;
-    while (segment_next(&lines, '\n')) {
-        if (lines.token.len != line_len) { return 1; }
-
-        String s = { .ptr = &data[line_len * l], .len = line_len };
-        if (string_copy(lines.token, s)) { return 2; }
-        l += 1;
-    }
-
-    Grid g = { .grid = data, .width = (I64)line_len, .height = (I64)line_count };
-    *out = g;
-    return 0;
-}
-
-void grid_dealloc(Grid g) {
-    free(g.grid);
-}
-
-void grid_print(Grid g) {
-    for (I64 y = 0; y < g.height; ++y) {
-        fwrite(&g.grid[y * g.width], 1, (Usize)g.width, stdout);
-        printf("\n");
-    }
-}
-
-bool grid_valid_idx(Grid g, I64 x, I64 y) {
-    return 0 <= x && x < g.width && 0 <= y && y < g.height;
-}
-
-// returns null byte on error
-char grid_index(Grid g, I64 x, I64 y) {
-    if (!grid_valid_idx(g, x, y)) { return 0; }
-    return g.grid[y * g.width + x];
-}
-
-// exclusive ranges
-int grid_sub(Grid* child, Grid parent, I64 x1, I64 x2, I64 y1, I64 y2) {
-    if (!grid_valid_idx(parent, x1, y1)) { return 1; }
-    if (!grid_valid_idx(parent, x2, y2)) { return 2; }
-
-    if (x2 < x1) { return 3; }
-    if (y2 < y1) { return 4; }
-
-    I64 out_width = x2 - x1;
-    I64 out_height = y2 - y1;
-    child->width = out_width;
-    child->height = out_height;
-    child->grid = malloc((Usize)(out_width * out_height) * sizeof(char));
-
-    for (I64 y = 0; y < out_height; ++y) {
-        for (I64 x = 0; x < out_width; ++x) {
-            I64 in_idx = (y1+y)*parent.width + x1+x;
-            I64 out_idx = y*out_width+x;
-            child->grid[out_idx] = parent.grid[in_idx];
-        }
-    }
-
-    return 0;
 }
 
 // HASHING -----------------------------------------------------------
@@ -320,13 +229,7 @@ typedef struct {
 
 // allows for at least size elements
 Set set_create(U32 size) {
-    // round up to pow2
-    U32 mask = size-1;
-    mask |= mask >> 1;
-    mask |= mask >> 2;
-    mask |= mask >> 4;
-    mask |= mask >> 8;
-    mask |= mask >> 16;
+    U32 mask = round_pow_2(size)-1;
 
     return (Set) {
         .keys = calloc(mask+1, sizeof(HashKey)),
