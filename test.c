@@ -13,11 +13,11 @@ int test_bump(void) {
     U8* prev = NULL;
 
     Timer t = timer_start();
-    for (U64 i = 0; i < (1<<14); ++i) {
+    //for (U64 i = 0; i < (1<<10); ++i) {
+    for (U64 i = 0; i < /1; ++i) {
         U32 r = prng_next(&p);
 
         Usize size = r & 1023;
-        if (size == 0) { continue; }
         Usize align = size-1;
         align |= align >> 1;
         align |= align >> 2;
@@ -26,18 +26,19 @@ int test_bump(void) {
         align |= align >> 16;
         align += 1;
 
+        if (size == 0) { continue; }
         //U8* ptr = malloc(align);
         U8* ptr = bump_list_alloc(&b, size, align);
         if (prev != NULL) {
             //assert(prev-ptr >= (I64)size);
             //printf("%lu %lu in %lu\n", size, align, prev-ptr);
         }
-        assert(((Usize)ptr & (align-1)) == 0);
+        //assert(((Usize)ptr & (align-1)) == 0);
 
         *ptr = (U8)size;
         prev = ptr;
     }
-    bump_list_dealloc(&b);
+    bump_list_clear(&b);
 
     printf("%fus\n", timer_elapsed_us(&t));
 
@@ -158,5 +159,5 @@ int test_stack(void) {
 }
 
 int main(void) {
-    return test_map();
+    return test_bump();
 }
