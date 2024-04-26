@@ -13,7 +13,6 @@ install: tools.h tools.o stack.h map.h arena.h prng_seeds.h
 	sudo cp tools.o /usr/local/include/tools.o
 	sudo cp stack.h /usr/local/include/stack.h
 	sudo cp map.h /usr/local/include/map.h
-	sudo cp arena.h /usr/local/include/arena.h
 	sudo cp prng_seeds.h /usr/local/include/prng_seeds.h
 
 test: tools.o test.c
