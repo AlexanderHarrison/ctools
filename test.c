@@ -13,8 +13,8 @@ int test_bump(void) {
     U8* prev = NULL;
 
     Timer t = timer_start();
-    //for (U64 i = 0; i < (1<<10); ++i) {
-    for (U64 i = 0; i < /1; ++i) {
+    for (U64 i = 0; i < (1<<10); ++i) {
+    //for (U64 i = 0; i < /1; ++i) {
         U32 r = prng_next(&p);
 
         Usize size = r & 1023;
@@ -158,6 +158,55 @@ int test_stack(void) {
     return 0;
 }
 
+int test_arena(void) {
+    Timer t = timer_start();
+    Arena ar = arena_create();
+    U64* arena_elements = vm_alloc(ARENA_MAX_ELEMENTS * sizeof(*arena_elements));
+    printf("%f\n", timer_elapsed_us(&t));
+
+    U64 n = 256;
+
+    for (U64 i = 0; i < n; ++i) {
+        U64 idx = arena_insert(&ar);
+        arena_elements[idx] = i;
+        //printf("insert at %u\n", arena_insert(&ar));
+    }
+
+    for (U64 i = 0; i < n; i += 2) {
+        arena_remove(&ar,(ArenaIdx)i);
+        //printf("remove at %u\n", i);
+    }
+
+    for (U64 i = 0; i < n; i += 4) {
+        U64 idx = arena_insert(&ar);
+        arena_elements[idx] = i;
+        //printf("insert at %u\n", arena_insert(&ar));
+    }
+
+    for (U64 i = 1; i < n; i += 8) {
+        arena_remove(&ar, (ArenaIdx)i);
+        //printf("remove at %u\n", i);
+    }
+
+    for (U64 i = 0; i < n/2; i++) {
+        U64 idx = arena_insert(&ar);
+        arena_elements[idx] = i;
+        //printf("insert at %u\n", arena_insert(&ar));
+    }
+    printf("%f\n", timer_elapsed_us(&t));
+
+    ArenaIter iter = arena_iter(&ar);
+
+    while (true) {
+        ArenaIdx idx = arena_iter_next(&iter);
+        if (idx == ARENA_INVALID_IDX) { break; }
+
+        printf("%lu at %u\n", arena_elements[idx], idx);
+    }
+
+    return 0;
+}
+
 int main(void) {
-    return test_bump();
+    return test_arena();
 }

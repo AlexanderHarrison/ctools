@@ -14,6 +14,20 @@ U32 round_pow_2(U32 n) {
     return m+1;
 }
 
+U8 lowest_bit_idx(U64 n) {
+    U8 idx = 0;
+
+    n = n & (~n + 1);
+    if ((n & 0x00000000FFFFFFFF) == 0) { idx += 32; }
+    if ((n & 0x0000FFFF0000FFFF) == 0) { idx += 16; }
+    if ((n & 0x00FF00FF00FF00FF) == 0) { idx += 8; }
+    if ((n & 0x0F0F0F0F0F0F0F0F) == 0) { idx += 4; }
+    if ((n & 0x3333333333333333) == 0) { idx += 2; }
+    if ((n & 0x5555555555555555) == 0) { idx += 1; }
+
+    return idx;
+}
+
 // STRING ----------------------------------------------------------------------
 
 void string_print(String s) {
@@ -169,8 +183,6 @@ HashKey murmur_32_scramble(U32 k) {
     k *= 0x1b873593;
     return k;
 }
-
-#define HASH(t) hash_bytes((U8*)&t, sizeof(t))
 
 // murmur 3
 HashKey hash_bytes(const U8* key, U64 len) {
@@ -353,10 +365,15 @@ double timer_lap_ns(Timer* timer) { return time_ns(timer_lap(timer)); }
 
 // ALLOCATORS ----------------------------------------------------------------
 
+static _Thread_local Usize page_size_global = 0;
 Usize page_size(void) {
-    return (Usize)sysconf(_SC_PAGESIZE);
+    if (page_size_global == 0) {
+        page_size_global = (Usize)sysconf(_SC_PAGESIZE);
+    }
+    return page_size_global;
 }
 
+// always zero initialized
 void* vm_alloc(Usize size) {
     return mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 }
@@ -374,8 +391,6 @@ BumpList bump_list_create(void) {
     };
 }
 
-#define BUMP_PAGE_ALLOC_COUNT 32
-
 void bump_list_new_page(BumpList* bump) {
     Usize alloc_size = page_size() * BUMP_PAGE_ALLOC_COUNT;
     U8* new_alloc_start = vm_alloc(alloc_size);
@@ -389,11 +404,6 @@ void bump_list_new_page(BumpList* bump) {
         .pos = (U8*)prev_page_pos,
     };
 }
-
-#define ALIGN_TO(p, align) (void*)((Usize)(p) & ~((align)-1))
-
-#define BUMP_LIST_ALLOC(bump, type) ((type*) bump_list_alloc(bump, sizeof(type), alignof(type)))
-#define BUMP_LIST_ALLOC_ARRAY(bump, type, size) ((type*) bump_list_alloc(bump, sizeof(type)*size, alignof(type)))
 
 // alignment must be a power of 2
 void* bump_list_alloc(BumpList* bump, Usize size, Usize align) {
@@ -438,6 +448,77 @@ void bump_list_dealloc(BumpList* bump) {
         U8* next_page = *((U8**)(page + alloc_size - sizeof(U8*)));
         vm_dealloc(page, alloc_size);
         page = next_page;
+    }
+}
+
+// arena --------------------------------------------------------
+
+Arena arena_create(void) {
+    return (Arena) {
+        .free = vm_alloc(ARENA_MAX_ELEMENTS / 8),
+        .element_num = 0,
+    };
+}
+
+// returns ARENA_INVALID_IDX on fail
+static ArenaIdx find_next_unused(U64* free, U64* end) {
+    ArenaIdx idx = 0;
+    while (true) {
+        U64 mask = *free;
+        if (mask != 0) {
+            idx += lowest_bit_idx(mask);
+            return idx;
+        }
+
+        if (free == end) { return ARENA_INVALID_IDX; }
+        free += 1;
+        idx += 64;
+    }
+}
+
+ArenaIdx arena_insert(Arena* ar) {
+    ArenaIdx idx = find_next_unused(ar->free, &ar->free[ar->element_num / 64]);
+    if (idx == ARENA_INVALID_IDX) {
+        idx = ar->element_num;
+        assert(idx != ARENA_INVALID_IDX);
+        ar->element_num += 1;
+    } else {
+        ar->free[idx / 64] &= ~(1ul << (idx % 64));
+    }
+
+    return idx;
+}
+
+void arena_remove(Arena* ar, ArenaIdx idx) {
+    ar->free[idx / 64] |= (1ul << (idx % 64));
+}
+
+void arena_dealloc(Arena* ar) {
+    vm_dealloc(ar->free, ARENA_MAX_ELEMENTS / 8);
+}
+
+ArenaIter arena_iter(Arena* ar) {
+    return (ArenaIter) {
+        .ar = ar,
+        .idx = 0,
+    };
+}
+
+ArenaIdx arena_iter_next(ArenaIter* iter) {
+    ArenaIdx idx = iter->idx;
+    Arena* ar = iter->ar;
+    ArenaIdx element_num = ar->element_num;
+    U64* free = ar->free;
+    while (true) {
+        if (idx == element_num) { return ARENA_INVALID_IDX; }
+
+        U64 mask = free[idx / 64];
+        if ((mask & (1ul << (idx % 64))) == 0) {
+            iter->idx = idx+1;
+            return idx;
+        }
+
+        idx += 1;
     }
 }
 

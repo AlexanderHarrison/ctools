@@ -33,6 +33,10 @@ typedef float F32;
 // round to next power of 2
 U32 round_pow_2(U32 n);
 
+// returns index of lowest set bit
+// UB if n is zero
+U8 lowest_bit_idx(U64 n);
+
 // STRING ----------------------------------------------------------------------
 
 typedef struct {
@@ -155,7 +159,7 @@ typedef struct {
 // bump -----------------------------------------------
 
 // Memory not contiguous
-// resetting may deallocate
+// clearing may deallocate
 typedef struct {
     U8* alloc_start;
     U8* pos;  
@@ -174,5 +178,32 @@ void bump_list_new_page(BumpList* bump);
 void* bump_list_alloc(BumpList* bump, Usize size, Usize align);
 void bump_list_clear(BumpList* bump);
 void bump_list_dealloc(BumpList* bump);
+
+// arena -----------------------------------------------
+
+#define ARENA_PAGE_ALLOC_COUNT 16
+#define ARENA_MAX_ELEMENTS (page_size() * ARENA_PAGE_ALLOC_COUNT)
+#define ARENA_INVALID_IDX (ArenaIdx)0xFFFF
+
+typedef U16 ArenaIdx;
+
+typedef struct {
+    U64* free;
+    ArenaIdx element_num;
+} Arena;
+
+Arena arena_create();
+ArenaIdx arena_insert(Arena* ar);
+
+void arena_remove(Arena* ar, ArenaIdx idx);
+void arena_dealloc(Arena* ar);
+
+typedef struct {
+    Arena* ar;
+    ArenaIdx idx;
+} ArenaIter;
+
+ArenaIter arena_iter(Arena* ar);
+ArenaIdx arena_iter_next(ArenaIter* iter);
 
 #endif
