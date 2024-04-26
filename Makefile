@@ -7,7 +7,7 @@ export GCC_COLORS = warning=01;33
 tools.o: tools.c tools.h
 	gcc -fPIC -std=gnu2x $(WARN_FLAGS) -O2 -c tools.c
 
-install: tools.h tools.o stack.h map.h arena.h prng_seeds.h
+install: tools.h tools.o stack.h map.h prng_seeds.h
 	sudo cp tools.h /usr/local/include/tools.h
 	sudo cp tools.c /usr/local/include/tools.c
 	sudo cp tools.o /usr/local/include/tools.o
