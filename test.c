@@ -207,6 +207,15 @@ int test_arena(void) {
     return 0;
 }
 
+int test_vec(void) {
+    Vec_2 a = {{ 1.0, 1.0 }};
+    Vec_2 b = {{ 2.0, 3.0 }};
+    Vec_4 c = {{ 1.0, 2.0, 3.0, 4.0 }};
+    Vec_3 s = vec_add_3(c.xyz, c.yzw);
+    printf("%f, %f, %f\n", s.x, s.y, s.z);
+    return 0;
+}
+
 int main(void) {
-    return test_arena();
+    return test_vec();
 }

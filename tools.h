@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <time.h>
+#include <math.h>
 
 typedef uint64_t U64;
 typedef uint32_t U32;
@@ -36,6 +37,131 @@ U32 round_pow_2(U32 n);
 // returns index of lowest set bit
 // UB if n is zero
 U8 lowest_bit_idx(U64 n);
+
+// MATH -----------------------------------------------------------------------
+
+typedef union {
+    struct {
+        F32 x, y;
+    };
+    F32 arr[2];
+} Vec_2;
+
+typedef union {
+    struct {
+        F32 x, y, z;
+    };
+
+    struct {
+        Vec_2 xy;
+        F32 z_xy;
+    };
+
+    struct {
+        F32 x_yz;
+        Vec_2 yz;
+    };
+
+    F32 arr[3];
+} Vec_3;
+
+typedef union {
+    struct {
+        F32 x, y, z, w;
+    };
+
+    struct {
+        F32 r, g, b, a;
+    };
+
+    struct {
+        Vec_2 xy;
+        Vec_2 zw;
+    };
+
+    struct {
+        F32 x_yz;
+        Vec_2 yz;
+        F32 w_yz;
+    };
+
+    struct {
+        Vec_3 xyz;
+        F32 z_xyz;
+    };
+
+    struct {
+        Vec_3 rgb;
+        F32 a_rgb;
+    };
+
+    struct {
+        F32 x_yzw;
+        Vec_3 yzw;
+    };
+
+    F32 arr[4];
+} Vec_4;
+
+Vec_2 vec_add_2(Vec_2 a, Vec_2 b);
+Vec_3 vec_add_3(Vec_3 a, Vec_3 b);
+Vec_4 vec_add_4(Vec_4 a, Vec_4 b);
+
+Vec_2 vec_mul_2(Vec_2 a, Vec_2 b);
+Vec_3 vec_mul_3(Vec_3 a, Vec_3 b);
+Vec_4 vec_mul_4(Vec_4 a, Vec_4 b);
+
+Vec_2 vec_div_2(Vec_2 a, Vec_2 b);
+Vec_3 vec_div_3(Vec_3 a, Vec_3 b);
+Vec_4 vec_div_4(Vec_4 a, Vec_4 b);
+
+Vec_2 vec_sub_2(Vec_2 a, Vec_2 b);
+Vec_3 vec_sub_3(Vec_3 a, Vec_3 b);
+Vec_4 vec_sub_4(Vec_4 a, Vec_4 b);
+
+Vec_2 vec_add_F32_2(Vec_2 a, F32 b);
+Vec_3 vec_add_F32_3(Vec_3 a, F32 b);
+Vec_4 vec_add_F32_4(Vec_4 a, F32 b);
+
+Vec_2 vec_mul_F32_2(Vec_2 a, F32 b);
+Vec_3 vec_mul_F32_3(Vec_3 a, F32 b);
+Vec_4 vec_mul_F32_4(Vec_4 a, F32 b);
+
+Vec_2 vec_div_F32_2(Vec_2 a, F32 b);
+Vec_3 vec_div_F32_3(Vec_3 a, F32 b);
+Vec_4 vec_div_F32_4(Vec_4 a, F32 b);
+
+Vec_2 vec_sub_F32_2(Vec_2 a, F32 b);
+Vec_3 vec_sub_F32_3(Vec_3 a, F32 b);
+Vec_4 vec_sub_F32_4(Vec_4 a, F32 b);
+
+F32 vec_dot_2(Vec_2 a, Vec_2 b);
+F32 vec_dot_3(Vec_3 a, Vec_3 b);
+F32 vec_dot_4(Vec_4 a, Vec_4 b);
+
+Vec_2 vec_neg_2(Vec_2 a);
+Vec_3 vec_neg_3(Vec_3 a);
+Vec_4 vec_neg_4(Vec_4 a);
+
+F32 vec_len_sq_2(Vec_2 a);
+F32 vec_len_sq_3(Vec_3 a);
+F32 vec_len_sq_4(Vec_4 a);
+
+F32 vec_len_2(Vec_2 a);
+F32 vec_len_3(Vec_3 a);
+F32 vec_len_4(Vec_4 a);
+
+Vec_2 vec_recip_2(Vec_2 a);
+Vec_3 vec_recip_3(Vec_3 a);
+Vec_4 vec_recip_4(Vec_4 a);
+
+Vec_2 vec_bcast_2(F32 a);
+Vec_3 vec_bcast_3(F32 a);
+Vec_4 vec_bcast_4(F32 a);
+
+Vec_2 vec_norm_2(Vec_2 a);
+Vec_3 vec_norm_3(Vec_3 a);
+Vec_4 vec_norm_4(Vec_4 a);
 
 // STRING ----------------------------------------------------------------------
 
@@ -149,13 +275,6 @@ Usize page_size(void);
 void* vm_alloc(Usize size);
 int vm_dealloc(void* ptr, Usize size);
 
-// common arena things -----------------------------------------------------------
-
-typedef struct {
-    U16 generation;
-    U16 index;
-} ArenaKey;
-
 // bump -----------------------------------------------
 
 // Memory not contiguous
@@ -186,24 +305,33 @@ void bump_list_dealloc(BumpList* bump);
 #define ARENA_INVALID_IDX (ArenaIdx)0xFFFF
 
 typedef U16 ArenaIdx;
+typedef U16 ArenaGen;
+
+typedef struct {
+    ArenaGen gen;
+    ArenaIdx idx;
+} ArenaKey;
 
 typedef struct {
     U64* free;
+    ArenaGen* generations;
     ArenaIdx element_num;
-} Arena;
+} ArenaTracking;
 
-Arena arena_create();
-ArenaIdx arena_insert(Arena* ar);
+ArenaTracking arena_tracking_create();
+ArenaKey arena_tracking_insert(ArenaTracking* ar);
 
-void arena_remove(Arena* ar, ArenaIdx idx);
-void arena_dealloc(Arena* ar);
+F32 arena_utilization(ArenaTracking* ar);
+bool arena_tracking_key_valid(ArenaTracking* ar, ArenaKey k);
+void arena_tracking_remove(ArenaTracking* ar, ArenaKey k);
+void arena_tracking_dealloc(ArenaTracking* ar);
 
 typedef struct {
-    Arena* ar;
+    ArenaTracking* ar;
     ArenaIdx idx;
 } ArenaIter;
 
-ArenaIter arena_iter(Arena* ar);
-ArenaIdx arena_iter_next(ArenaIter* iter);
+ArenaIter arena_iter(ArenaTracking* ar);
+ArenaKey arena_iter_next(ArenaIter* iter);
 
 #endif

@@ -4,14 +4,15 @@ WARN_FLAGS := -Wall -Wextra -Wpedantic -Wuninitialized -Wcast-qual -Wdisabled-op
 
 export GCC_COLORS = warning=01;33
 
-tools.o: tools.c tools.h
-	gcc -fPIC -std=gnu2x $(WARN_FLAGS) -O2 -c tools.c
+tools.o: tools.c tools.h vec.c
+	gcc -fPIC -std=gnu2x $(WARN_FLAGS) -ffast-math -O2 -c tools.c -lmath
 
-install: tools.h tools.o stack.h map.h prng_seeds.h
+install: tools.h tools.o stack.h arena.h map.h prng_seeds.h vec.c
 	sudo cp tools.h /usr/local/include/tools.h
 	sudo cp tools.c /usr/local/include/tools.c
-	sudo cp tools.o /usr/local/include/tools.o
+	sudo cp tools.o /usr/local/lib/tools.o
 	sudo cp stack.h /usr/local/include/stack.h
+	sudo cp arena.h /usr/local/include/arena.h
 	sudo cp map.h /usr/local/include/map.h
 	sudo cp prng_seeds.h /usr/local/include/prng_seeds.h
 

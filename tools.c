@@ -28,6 +28,17 @@ U8 lowest_bit_idx(U64 n) {
     return idx;
 }
 
+// MATH ------------------------------------------------------------------------
+
+#define VEC_DIM 2
+#include "vec.c"
+
+#define VEC_DIM 3
+#include "vec.c"
+
+#define VEC_DIM 4
+#include "vec.c"
+
 // STRING ----------------------------------------------------------------------
 
 void string_print(String s) {
@@ -453,9 +464,10 @@ void bump_list_dealloc(BumpList* bump) {
 
 // arena --------------------------------------------------------
 
-Arena arena_create(void) {
-    return (Arena) {
+ArenaTracking arena_tracking_create(void) {
+    return (ArenaTracking) {
         .free = vm_alloc(ARENA_MAX_ELEMENTS / 8),
+        .generations = vm_alloc(ARENA_MAX_ELEMENTS * sizeof(ArenaGen)),
         .element_num = 0,
     };
 }
@@ -476,8 +488,9 @@ static ArenaIdx find_next_unused(U64* free, U64* end) {
     }
 }
 
-ArenaIdx arena_insert(Arena* ar) {
+ArenaKey arena_tracking_insert(ArenaTracking* ar) {
     ArenaIdx idx = find_next_unused(ar->free, &ar->free[ar->element_num / 64]);
+
     if (idx == ARENA_INVALID_IDX) {
         idx = ar->element_num;
         assert(idx != ARENA_INVALID_IDX);
@@ -486,40 +499,80 @@ ArenaIdx arena_insert(Arena* ar) {
         ar->free[idx / 64] &= ~(1ul << (idx % 64));
     }
 
-    return idx;
+    ArenaGen gen = ar->generations[idx]+1;
+    ar->generations[idx] = gen;
+
+    return (ArenaKey) {
+        .idx = idx,
+        .gen = gen,
+    };
 }
 
-void arena_remove(Arena* ar, ArenaIdx idx) {
+F32 arena_utilization(ArenaTracking* ar) {
+    U32 free_count = 0;
+    U64 last = ((U64)ar->element_num + 63) / 64;
+
+    for (U64 i = 0; i < last; ++i) {
+        U64 free = ar->free[i];
+        while (free != 0) {
+            free ^= free & ((~free) + 1);
+            free_count += 1;
+        }
+    }
+
+    return (F32)(ar->element_num - free_count) / (F32)ar->element_num;
+}
+
+bool arena_tracking_key_valid(ArenaTracking* ar, ArenaKey key) {
+    return ar->generations[key.idx] == key.gen;
+}
+
+void arena_tracking_remove(ArenaTracking* ar, ArenaKey key) {
+    U64 idx = key.idx;
+    if (!arena_tracking_key_valid(ar, key)) return;
+    ar->generations[idx] += 1;
     ar->free[idx / 64] |= (1ul << (idx % 64));
 }
 
-void arena_dealloc(Arena* ar) {
+void arena_tracking_dealloc(ArenaTracking* ar) {
     vm_dealloc(ar->free, ARENA_MAX_ELEMENTS / 8);
+    vm_dealloc(ar->generations, ARENA_MAX_ELEMENTS * sizeof(ArenaGen));
 }
 
-ArenaIter arena_iter(Arena* ar) {
+ArenaIter arena_iter(ArenaTracking* ar) {
     return (ArenaIter) {
         .ar = ar,
         .idx = 0,
     };
 }
 
-ArenaIdx arena_iter_next(ArenaIter* iter) {
+ArenaKey arena_iter_next(ArenaIter* iter) {
     ArenaIdx idx = iter->idx;
-    Arena* ar = iter->ar;
+    ArenaTracking* ar = iter->ar;
     ArenaIdx element_num = ar->element_num;
     U64* free = ar->free;
     while (true) {
-        if (idx == element_num) { return ARENA_INVALID_IDX; }
+        if (idx == element_num) { 
+            return (ArenaKey) {
+                .idx = ARENA_INVALID_IDX,
+                .gen = 0,
+            };
+        }
 
         U64 mask = free[idx / 64];
         if ((mask & (1ul << (idx % 64))) == 0) {
             iter->idx = idx+1;
-            return idx;
+            break;
         }
 
         idx += 1;
     }
+
+    ArenaGen gen = ar->generations[idx];
+    return (ArenaKey) {
+        .gen = gen,
+        .idx = idx,
+    };
 }
 
 #endif
