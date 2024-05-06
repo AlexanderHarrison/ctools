@@ -472,6 +472,12 @@ ArenaTracking arena_tracking_create(void) {
     };
 }
 
+void arena_tracking_reset(ArenaTracking* ar) {
+    memset(ar->free, 0, ARENA_MAX_ELEMENTS / 8);
+    memset(ar->generations, 0, ARENA_MAX_ELEMENTS * sizeof(ArenaGen));
+    ar->element_num = 0;
+}
+
 // returns ARENA_INVALID_IDX on fail
 static ArenaIdx find_next_unused(U64* free, U64* end) {
     ArenaIdx idx = 0;

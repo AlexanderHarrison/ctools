@@ -319,6 +319,7 @@ typedef struct {
 } ArenaTracking;
 
 ArenaTracking arena_tracking_create();
+void arena_tracking_reset(ArenaTracking* ar);
 ArenaKey arena_tracking_insert(ArenaTracking* ar);
 
 F32 arena_utilization(ArenaTracking* ar);

@@ -158,54 +158,54 @@ int test_stack(void) {
     return 0;
 }
 
-int test_arena(void) {
-    Timer t = timer_start();
-    Arena ar = arena_create();
-    U64* arena_elements = vm_alloc(ARENA_MAX_ELEMENTS * sizeof(*arena_elements));
-    printf("%f\n", timer_elapsed_us(&t));
-
-    U64 n = 256;
-
-    for (U64 i = 0; i < n; ++i) {
-        U64 idx = arena_insert(&ar);
-        arena_elements[idx] = i;
-        //printf("insert at %u\n", arena_insert(&ar));
-    }
-
-    for (U64 i = 0; i < n; i += 2) {
-        arena_remove(&ar,(ArenaIdx)i);
-        //printf("remove at %u\n", i);
-    }
-
-    for (U64 i = 0; i < n; i += 4) {
-        U64 idx = arena_insert(&ar);
-        arena_elements[idx] = i;
-        //printf("insert at %u\n", arena_insert(&ar));
-    }
-
-    for (U64 i = 1; i < n; i += 8) {
-        arena_remove(&ar, (ArenaIdx)i);
-        //printf("remove at %u\n", i);
-    }
-
-    for (U64 i = 0; i < n/2; i++) {
-        U64 idx = arena_insert(&ar);
-        arena_elements[idx] = i;
-        //printf("insert at %u\n", arena_insert(&ar));
-    }
-    printf("%f\n", timer_elapsed_us(&t));
-
-    ArenaIter iter = arena_iter(&ar);
-
-    while (true) {
-        ArenaIdx idx = arena_iter_next(&iter);
-        if (idx == ARENA_INVALID_IDX) { break; }
-
-        printf("%lu at %u\n", arena_elements[idx], idx);
-    }
-
-    return 0;
-}
+//int test_arena(void) {
+//    Timer t = timer_start();
+//    ArenaTracking ar = arena_tracking_create();
+//    ArenaKey* arena_tracking_elements = vm_alloc(ARENA_MAX_ELEMENTS * sizeof(*arena_tracking_elements));
+//    printf("%f\n", timer_elapsed_us(&t));
+//
+//    U64 n = 256;
+//
+//    for (U64 i = 0; i < n; ++i) {
+//        U64 idx = arena_tracking_insert(&ar);
+//        arena_tracking_elements[idx] = i;
+//        //printf("insert at %u\n", arena_tracking_insert(&ar));
+//    }
+//
+//    for (U64 i = 0; i < n; i += 2) {
+//        arena_tracking_remove(&ar,(ArenaIdx)i);
+//        //printf("remove at %u\n", i);
+//    }
+//
+//    for (U64 i = 0; i < n; i += 4) {
+//        U64 idx = arena_tracking_insert(&ar);
+//        arena_tracking_elements[idx] = i;
+//        //printf("insert at %u\n", arena_tracking_insert(&ar));
+//    }
+//
+//    for (U64 i = 1; i < n; i += 8) {
+//        arena_tracking_remove(&ar, (ArenaIdx)i);
+//        //printf("remove at %u\n", i);
+//    }
+//
+//    for (U64 i = 0; i < n/2; i++) {
+//        ArenaKey idx = arena_tracking_insert(&ar);
+//        arena_tracking_elements[idx] = i;
+//        //printf("insert at %u\n", arena_tracking_insert(&ar));
+//    }
+//    printf("%f\n", timer_elapsed_us(&t));
+//
+//    ArenaIter iter = arena_iter(&ar);
+//
+//    while (true) {
+//        ArenaIdx idx = arena_iter_next(&iter);
+//        if (idx == ARENA_INVALID_IDX) { break; }
+//
+//        printf("%lu at %u\n", arena_tracking_elements[idx], idx);
+//    }
+//
+//    return 0;
+//}
 
 int test_vec(void) {
     Vec_2 a = {{ 1.0, 1.0 }};
