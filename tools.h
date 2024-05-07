@@ -321,6 +321,7 @@ typedef struct {
 ArenaTracking arena_tracking_create();
 void arena_tracking_reset(ArenaTracking* ar);
 ArenaKey arena_tracking_insert(ArenaTracking* ar);
+bool arena_key_equal(ArenaKey a, ArenaKey b);
 
 F32 arena_utilization(ArenaTracking* ar);
 bool arena_tracking_key_valid(ArenaTracking* ar, ArenaKey k);

@@ -514,6 +514,10 @@ ArenaKey arena_tracking_insert(ArenaTracking* ar) {
     };
 }
 
+bool arena_key_equal(ArenaKey a, ArenaKey b) {
+    return ((a.idx == b.idx) & (a.gen == b.gen));
+}
+
 F32 arena_utilization(ArenaTracking* ar) {
     U32 free_count = 0;
     U64 last = ((U64)ar->element_num + 63) / 64;
